@@ -24,14 +24,14 @@ def talk_to_link(llm, prompt, file_path=None, vectorstore=None):
 
 def prepare_data(list_urls, openai_api_key):
     try:
-        file_path = "src/ml_logic/vector_store"
+        ### file_path = "src/ml_logic/vector_store"
 
         # loading and splitting urls
         docs = data_workflow(list_urls)
 
         # loading and saving vector store
         vectorstore_openai = load_vector_store(docs, openai_api_key)
-        save_vector_store(vectorstore_openai, file_path) # saving locally, not the best but it enough for this demo
+        ### save_vector_store(vectorstore_openai, file_path) # saving locally, not the best but it enough for this demo
         print("✅ Data prepared successfully.")
 
         return vectorstore_openai

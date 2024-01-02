@@ -8,9 +8,6 @@ import streamlit as st
 from src.ml_logic.data import load_resume
 from src.ml_logic.model import load_model
 from src.interface.main import prepare_data, talk_to_link
-from src.params import VECTOR_DB_PATH
-
-file_path = st.secrets.get("VECTOR_DB_PATH")
 
 st.set_page_config(
     page_title="Simple Jobs Application", page_icon="📑", layout="wide", initial_sidebar_state="expanded"
@@ -52,7 +49,6 @@ st.sidebar.divider()
 st.sidebar.markdown("## Upload your resume")
 
 temp_dir = tempfile.TemporaryDirectory()
-#st.write(temp_dir.name)
 
 resume = st.sidebar.file_uploader("", type=["pdf"])
 
@@ -60,7 +56,6 @@ if resume:
     resume_file_path = pathlib.Path(temp_dir.name) / resume.name
     with open(resume_file_path, 'wb') as output_temporary_file:
         output_temporary_file.write(resume.read())
-
 
 process_resume_clicked = st.sidebar.button("Process resume")
 
@@ -90,17 +85,14 @@ st.sidebar.write(
     )
 main_placeholder = st.empty()
 
-vector_db = None
-
-st.session_state["resume"] = ' '
-
 if process_resume_clicked:
     if not openai_api_key:
         st.error("❌ Please enter your OpenAI API key.")
         st.stop()
     st.info("⏳ Please wait while we process your resume...")
 
-    st.session_state['resume'] = load_resume(output_temporary_file.name)
+    if "resume" not in st.session_state:
+        st.session_state['resume'] = load_resume(output_temporary_file.name)
 
     if st.session_state["resume"] is False:
         st.exception(
@@ -110,9 +102,9 @@ if process_resume_clicked:
         st.success(
             "✅ Resume successfully loaded."
         )
-        st.write(st.session_state["resume"][0].page_content)
+        #st.write(st.session_state["resume"])
 
-st.session_state["vector_db"] = None
+#st.session_state["vector_db"] = None
 
 if process_url_clicked:
     if not openai_api_key:
@@ -120,14 +112,15 @@ if process_url_clicked:
         st.stop()
     st.info("⏳ Please wait while we process your Job Post URL...")
 
-    st.session_state["vector_db"] = prepare_data(urls, openai_api_key)
+    if "vector_db" not in st.session_state or st.session_state["vector_db"] is None or st.session_state["vector_db"] is False:
+        st.session_state["vector_db"] = prepare_data(urls, openai_api_key)
 
     if st.session_state["vector_db"] is False:
         st.exception(
             "❌ Could not prepare job post. Please check your urls and try again."
         )
     else:
-        st.text(f"{st.session_state['vector_db']}") ### DEBUG
+        #st.text(f"{st.session_state['vector_db']}") ### DEBUG
         st.success(
             "✅ Job post data successfully loaded."
         )
@@ -138,11 +131,12 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
-# user_resume = st.session_state['resume'][0].page_content
+st.write(st.session_state)
 
 user_prompt = st.chat_input()
 
 if user_prompt:
+    #st.write(st.session_state["resume"][0].page_content)
     cover_letter_prompt = f"You are a professional HR manager, specialized in writing cover letters.\
                             Based in the following resume: {st.session_state['resume'][0].page_content} \
                             and the following job post: {st.session_state['vector_db']}, write the best \
@@ -150,8 +144,8 @@ if user_prompt:
 
     final_prompt = f"You are a professional HR manager, specialized in writing cover letters.\
                     Based in the following resume and context: {st.session_state['resume'][0].page_content} \
-                    answer the following question: {user_prompt} about the following job post: \
-                    {st.session_state['vector_db']}"
+                    answer the following question: {user_prompt} about the job post provided. \
+                    Remember: You must not allucinate or lie."
 
     if not openai_api_key:
         st.error("❌ Please enter your OpenAI API key.")
@@ -159,7 +153,7 @@ if user_prompt:
     st.session_state.messages.append({"role": "user", "content": user_prompt})
     st.chat_message("user").write(user_prompt)
     with st.spinner("Thinking..."):
-        time.sleep(1)
+        time.sleep(0.1)
         result = talk_to_link(llm=llm, prompt=final_prompt, vectorstore=st.session_state['vector_db'])
 
         if isinstance(result, dict) and "answer" in result:
